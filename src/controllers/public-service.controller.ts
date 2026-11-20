@@ -1,6 +1,6 @@
 
 import type { RequestHandler } from "express";
-import type { Document } from "mongodb";
+import { ObjectId, type Document } from "mongodb";
 
 import { getServicesCollection } from "../models/service.model.js";
 
@@ -255,4 +255,135 @@ export const getPublicServices: RequestHandler = async (
   } catch (error) {
     next(error);
   }
+};
+
+export const getPublicServiceById: RequestHandler = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const serviceId = getQueryString(req.params.id);
+
+    if (!ObjectId.isValid(serviceId)) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid service ID.",
+      });
+      return;
+    }
+
+    const now = new Date();
+
+    const pipeline: Document[] = [
+      {
+        $match: {
+          _id: new ObjectId(serviceId),
+          status: "active",
+          approvalStatus: "approved",
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "vendorId",
+          foreignField: "_id",
+          as: "vendor",
+        },
+      },
+      {
+        $unwind: "$vendor",
+      },
+      {
+        $match: {
+          "vendor.isBlocked": { $ne: true },
+        },
+      },
+      {
+        $addFields: {
+          _premiumSubscriptionValid: {
+            $and: [
+              { $eq: ["$vendor.subscriptionPlan", "premium"] },
+              {
+                $gt: [
+                  "$vendor.subscriptionExpiresAt",
+                  now,
+                ],
+              },
+              {
+                $not: [
+                  {
+                    $in: [
+                      {
+                        $ifNull: [
+                          "$vendor.subscriptionPaymentStatus",
+                          "active",
+                        ],
+                      },
+                      ["past_due", "cancelled", "failed"],
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+      {
+        $setWindowFields: {
+          partitionBy: "$vendorId",
+          sortBy: {
+            updatedAt: -1,
+          },
+          output: {
+            _vendorServiceRank: {
+              $documentNumber: {},
+            },
+          },
+        },
+      },
+      {
+        $match: {
+          $or: [
+            { _premiumSubscriptionValid: true },
+            { _vendorServiceRank: { $lte: 3 } },
+          ],
+        },
+      },
+      {
+        $limit: 1,
+      },
+      {
+        $project: {
+          _premiumSubscriptionValid: 0,
+          _vendorServiceRank: 0,
+          vendor: {
+            _id: "$vendor._id",
+            name: "$vendor.name",
+            businessName: "$vendor.businessName",
+          },
+        },
+      },
+    ];
+
+    const [service] = await getServicesCollection()
+      .aggregate<Document>(pipeline)
+      .toArray();
+
+    if (!service) {
+      res.status(404).json({
+        success: false,
+        message: "Service not found or is no longer available.",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: service,
+    });
+  } catch (error) {
+  console.error("getPublicServiceById error:", error);
+  next(error);
+}
 };

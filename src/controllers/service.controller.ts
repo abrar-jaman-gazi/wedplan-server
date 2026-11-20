@@ -1,5 +1,5 @@
 
-import type { RequestHandler } from "express";
+import type { RequestHandler, Request } from "express";
 import { ObjectId } from "mongodb";
 
 import { getServicesCollection } from "../models/service.model.js";
@@ -8,7 +8,7 @@ import {
   validateUpdateServiceInput,
 } from "../utils/service.validation.js";
 
-const getVendorId = (req: Parameters<RequestHandler>[0]): ObjectId | null => {
+const getVendorId = (req: Request): ObjectId | null => {
   if (!req.auth?.userId || !ObjectId.isValid(req.auth.userId)) {
     return null;
   }
@@ -16,7 +16,7 @@ const getVendorId = (req: Parameters<RequestHandler>[0]): ObjectId | null => {
   return new ObjectId(req.auth.userId);
 };
 
-const getServiceId = (req: Parameters<RequestHandler>[0]): string | null => {
+const getServiceId = (req: Request): string | null => {
   const idParam = req.params.id;
   const id = Array.isArray(idParam) ? idParam[0] : idParam;
 
@@ -27,7 +27,11 @@ const getServiceId = (req: Parameters<RequestHandler>[0]): string | null => {
   return id;
 };
 
-export const createService: RequestHandler = async (req, res, next) => {
+export const createService: RequestHandler = async (
+  req,
+  res,
+  next
+) => {
   try {
     const vendorId = getVendorId(req);
 
@@ -68,7 +72,8 @@ export const createService: RequestHandler = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: "Service submitted successfully and is awaiting admin approval",
+      message:
+        "Service submitted successfully and is awaiting admin approval",
       data: {
         _id: result.insertedId,
         ...service,
@@ -79,7 +84,11 @@ export const createService: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const getMyServices: RequestHandler = async (req, res, next) => {
+export const getMyServices: RequestHandler = async (
+  req,
+  res,
+  next
+) => {
   try {
     const vendorId = getVendorId(req);
 
@@ -106,7 +115,11 @@ export const getMyServices: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const updateService: RequestHandler = async (req, res, next) => {
+export const updateService: RequestHandler = async (
+  req,
+  res,
+  next
+) => {
   try {
     const vendorId = getVendorId(req);
 
@@ -190,7 +203,11 @@ export const updateService: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const deleteService: RequestHandler = async (req, res, next) => {
+export const deleteService: RequestHandler = async (
+  req,
+  res,
+  next
+) => {
   try {
     const vendorId = getVendorId(req);
 
