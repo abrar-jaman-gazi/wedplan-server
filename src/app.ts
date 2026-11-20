@@ -1,4 +1,3 @@
-
 import express from "express";
 import cors from "cors";
 import { toNodeHandler } from "better-auth/node";
@@ -6,7 +5,7 @@ import { toNodeHandler } from "better-auth/node";
 import { auth } from "./config/auth.js";
 import { env } from "./config/env.js";
 import healthRoutes from "./routes/health.routes.js";
-
+import adminRoutes from "./routes/admin.routes.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 
 const app = express();
@@ -35,8 +34,7 @@ app.get("/", (_req, res) => {
 });
 
 app.use("/api/health", healthRoutes);
-
-
+app.use("/api/admin", adminRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({
