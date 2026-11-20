@@ -48,7 +48,9 @@ export const authenticate: RequestHandler = async (
     }
 
     userId = payload.sub;
-  } catch {
+   } catch (error) {
+    console.error("JWT verification failed:", error);
+
     res.status(401).json({
       success: false,
       message: "Invalid or expired authentication token",

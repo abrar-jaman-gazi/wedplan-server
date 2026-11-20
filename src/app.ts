@@ -7,6 +7,7 @@ import { auth } from "./config/auth.js";
 import { env } from "./config/env.js";
 import healthRoutes from "./routes/health.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import serviceRoutes from "./routes/service.routes.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 
 const app = express();
@@ -36,6 +37,7 @@ app.get("/", (_req, res) => {
 
 app.use("/api/health", healthRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/services", serviceRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({
