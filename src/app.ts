@@ -1,3 +1,4 @@
+
 import bookingRoutes from "./routes/booking.routes.js";
 import express from "express";
 import cors from "cors";
@@ -14,6 +15,7 @@ import publicServiceRoutes from "./routes/public-service.routes.js";
 import serviceRoutes from "./routes/service.routes.js";
 import stripeRoutes from "./routes/stripe.routes.js";
 import stripeWebhookRoutes from "./routes/stripe-webhook.routes.js";
+import uploadRoutes from "./routes/upload.routes.js";
 
 import { errorHandler } from "./middleware/error.middleware.js";
 
@@ -53,9 +55,10 @@ app.get("/", (_req, res) => {
 
 app.use("/api/health", healthRoutes);
 app.use("/api/stripe", stripeRoutes);
+app.use("/api/uploads", uploadRoutes);
 
-app.use("/api/services", publicServiceRoutes);
 app.use("/api/services", serviceRoutes);
+app.use("/api/services", publicServiceRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/admin/services", adminServiceRoutes);
 app.use("/api/admin/transactions", adminTransactionRoutes);
