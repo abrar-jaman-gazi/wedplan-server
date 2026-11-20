@@ -1,4 +1,4 @@
-
+import { ensureBookingIndexes } from "./models/booking.model.js";
 import app from "./app.js";
 import { env } from "./config/env.js";
 import {
@@ -10,7 +10,8 @@ import { ensureTransactionIndexes } from "./models/transaction.model.js";
 
 const initializeIndexes = async (): Promise<void> => {
   const database = getDatabase();
-
+   
+  await ensureBookingIndexes();
   await ensureTransactionIndexes();
 
   await database.collection("processed_stripe_events").createIndex(

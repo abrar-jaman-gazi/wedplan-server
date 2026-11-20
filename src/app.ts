@@ -1,3 +1,4 @@
+import bookingRoutes from "./routes/booking.routes.js";
 import express from "express";
 import cors from "cors";
 import { toNodeHandler } from "better-auth/node";
@@ -55,7 +56,7 @@ app.use("/api/stripe", stripeRoutes);
 
 app.use("/api/services", publicServiceRoutes);
 app.use("/api/services", serviceRoutes);
-
+app.use("/api/bookings", bookingRoutes);
 app.use("/api/admin/services", adminServiceRoutes);
 app.use("/api/admin/transactions", adminTransactionRoutes);
 app.use("/api/admin", adminRoutes);
