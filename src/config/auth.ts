@@ -7,7 +7,6 @@ import { jwt } from "better-auth/plugins";
 import { getMongoClient } from "./database.js";
 import { env } from "./env.js";
 
-
 const additionalFields = {
   role: {
     type: "string" as const,
@@ -37,8 +36,12 @@ const additionalFields = {
     required: false,
     input: false,
   },
+  stripeSubscriptionId: {
+    type: "string" as const,
+    required: false,
+    input: false,
+  },
 };
-
 
 export const auth = betterAuth({
   appName: "WedPlan",
@@ -98,6 +101,7 @@ export const auth = betterAuth({
               isBlocked: false,
               subscriptionPlan: "free",
               subscriptionExpiresAt: null,
+              stripeSubscriptionId: null,
             },
           };
         },
@@ -105,9 +109,15 @@ export const auth = betterAuth({
 
       update: {
         before: async (user) => {
-          if (user.role !== undefined) {
+          if (
+            user.role !== undefined ||
+            user.stripeSubscriptionId !== undefined ||
+            user.subscriptionPlan !== undefined ||
+            user.subscriptionExpiresAt !== undefined ||
+            user.isBlocked !== undefined
+          ) {
             throw new APIError("FORBIDDEN", {
-              message: "Account roles cannot be changed through profile updates.",
+              message: "Protected account fields cannot be changed through profile updates.",
             });
           }
 
