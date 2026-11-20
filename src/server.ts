@@ -1,30 +1,37 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
 
-dotenv.config();
+import app from "./app.js";
+import { env } from "./config/env.js";
+import {
+  connectDatabase,
+  closeDatabase,
+} from "./config/database.js";
 
-const app = express();
+const startServer = async (): Promise<void> => {
+  try {
+    await connectDatabase();
 
-const PORT = Number(process.env.PORT) || 5000;
+    const server = app.listen(env.PORT, () => {
+      console.log(
+        `WedPlan server running at http://localhost:${env.PORT}`
+      );
+    });
 
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    credentials: true,
-  })
-);
+    const shutdown = async (): Promise<void> => {
+      console.log("Shutting down WedPlan server");
 
-app.use(express.json());
+      server.close(async () => {
+        await closeDatabase();
+        process.exit(0);
+      });
+    };
 
-app.get("/api/health", (_req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "WedPlan API is running",
-    environment: process.env.NODE_ENV || "development",
-  });
-});
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
+  } catch (error) {
+    console.error("Unable to start WedPlan server:", error);
+    await closeDatabase();
+    process.exit(1);
+  }
+};
 
-app.listen(PORT, () => {
-  console.log(`WedPlan server running on http://localhost:${PORT}`);
-});
+void startServer();
