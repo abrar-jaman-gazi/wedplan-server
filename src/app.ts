@@ -1,4 +1,4 @@
-
+import adminTransactionRoutes from "./routes/admin-transaction.routes.js";
 import express from "express";
 import cors from "cors";
 import { toNodeHandler } from "better-auth/node";
@@ -38,6 +38,7 @@ app.get("/", (_req, res) => {
 
 app.use("/api/health", healthRoutes);
 app.use("/api/admin/services", adminServiceRoutes);
+app.use("/api/admin/transactions", adminTransactionRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/services", serviceRoutes);
 
