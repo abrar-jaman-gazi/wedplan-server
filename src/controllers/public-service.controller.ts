@@ -39,6 +39,7 @@ export const getPublicServices: RequestHandler = async (
     const search = getQueryString(req.query.search);
     const category = getQueryString(req.query.category);
     const location = getQueryString(req.query.location);
+    const requestedSort = getQueryString(req.query.sort);
 
     const now = new Date();
 
@@ -157,14 +158,36 @@ export const getPublicServices: RequestHandler = async (
       });
     }
 
-    pipeline.push(
-      {
+    let sortStage: Document;
+
+    if (requestedSort === "price-asc") {
+      sortStage = {
+        $sort: {
+          price: 1,
+          updatedAt: -1,
+          _id: -1,
+        },
+      };
+    } else if (requestedSort === "price-desc") {
+      sortStage = {
+        $sort: {
+          price: -1,
+          updatedAt: -1,
+          _id: -1,
+        },
+      };
+    } else {
+      sortStage = {
         $sort: {
           updatedAt: -1,
           createdAt: -1,
           _id: -1,
         },
-      },
+      };
+    }
+
+    pipeline.push(
+      sortStage,
       {
         $facet: {
           metadata: [
