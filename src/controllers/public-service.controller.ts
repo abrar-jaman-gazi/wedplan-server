@@ -353,17 +353,22 @@ export const getPublicServiceById: RequestHandler = async (
       {
         $limit: 1,
       },
-      {
-        $project: {
-          _premiumSubscriptionValid: 0,
-          _vendorServiceRank: 0,
-          vendor: {
-            _id: "$vendor._id",
-            name: "$vendor.name",
-            businessName: "$vendor.businessName",
-          },
-        },
-      },
+      
+{
+  $set: {
+    vendor: {
+      _id: "$vendor._id",
+      name: "$vendor.name",
+      businessName: "$vendor.businessName",
+    },
+  },
+},
+{
+  $unset: [
+    "_premiumSubscriptionValid",
+    "_vendorServiceRank",
+  ],
+},
     ];
 
     const [service] = await getServicesCollection()
