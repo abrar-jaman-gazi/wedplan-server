@@ -4,26 +4,51 @@ import { env } from "./env.js";
 
 let client: MongoClient | null = null;
 let database: Db | null = null;
+let connectionPromise: Promise<Db> | null = null;
 
-export const connectDatabase = async (): Promise<Db> => {
+export const getMongoClient = (): MongoClient => {
   if (!env.MONGODB_URI) {
-    throw new Error("MONGODB_URI is missing from the backend environment");
+    throw new Error("MONGODB_URI is missing");
   }
 
-  try {
+  if (!client) {
     client = new MongoClient(env.MONGODB_URI);
+  }
 
-    await client.connect();
+  return client;
+};
 
-    database = client.db(env.MONGODB_DATABASE);
-
-    await database.command({ ping: 1 });
-
-    console.log(`MongoDB connected successfully: ${env.MONGODB_DATABASE}`);
-
+export const connectDatabase = async (): Promise<Db> => {
+  if (database) {
     return database;
+  }
+
+  if (connectionPromise) {
+    return connectionPromise;
+  }
+
+  connectionPromise = (async () => {
+    const mongoClient = getMongoClient();
+
+    await mongoClient.connect();
+
+    const connectedDatabase = mongoClient.db(env.MONGODB_DATABASE);
+
+    await connectedDatabase.command({ ping: 1 });
+
+    database = connectedDatabase;
+
+    console.log(
+      `MongoDB connected successfully: ${env.MONGODB_DATABASE}`
+    );
+
+    return connectedDatabase;
+  })();
+
+  try {
+    return await connectionPromise;
   } catch (error) {
-    console.error("MongoDB connection failed:", error);
+    connectionPromise = null;
     throw error;
   }
 };
@@ -41,6 +66,7 @@ export const closeDatabase = async (): Promise<void> => {
     await client.close();
     client = null;
     database = null;
+    connectionPromise = null;
     console.log("MongoDB connection closed");
   }
 };
