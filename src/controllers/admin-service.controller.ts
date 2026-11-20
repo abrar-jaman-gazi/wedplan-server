@@ -45,7 +45,9 @@ const parsePositiveInteger = (
   return Math.min(parsed, maximum);
 };
 
-const getServiceId = (req: Parameters<RequestHandler>[0]): ObjectId | null => {
+const getServiceId = (
+  req: Parameters<RequestHandler>[0]
+): ObjectId | null => {
   const idParam = req.params.id;
   const id = Array.isArray(idParam) ? idParam[0] : idParam;
 
@@ -65,6 +67,8 @@ const getActivationError = async (
   const vendor = await database.collection<{
     subscriptionPlan?: string;
     subscriptionExpiresAt?: Date | null;
+    subscriptionPaymentStatus?: string;
+    isBlocked?: boolean;
   }>("users").findOne(
     { _id: service.vendorId },
     {
@@ -72,6 +76,8 @@ const getActivationError = async (
       projection: {
         subscriptionPlan: 1,
         subscriptionExpiresAt: 1,
+        subscriptionPaymentStatus: 1,
+        isBlocked: 1,
       },
     }
   );
@@ -80,13 +86,20 @@ const getActivationError = async (
     return "The vendor account associated with this service was not found.";
   }
 
+  if (vendor.isBlocked) {
+    return "This vendor account is blocked and cannot activate services.";
+  }
+
   const now = new Date();
   const expiry = vendor.subscriptionExpiresAt;
 
   const hasActivePremiumSubscription =
     vendor.subscriptionPlan === "premium" &&
     expiry instanceof Date &&
-    expiry.getTime() > now.getTime();
+    expiry.getTime() > now.getTime() &&
+    vendor.subscriptionPaymentStatus !== "past_due" &&
+    vendor.subscriptionPaymentStatus !== "cancelled" &&
+    vendor.subscriptionPaymentStatus !== "failed";
 
   if (hasActivePremiumSubscription) {
     return null;
@@ -233,6 +246,8 @@ export const getAdminServiceById: RequestHandler = async (
           businessName: 1,
           subscriptionPlan: 1,
           subscriptionExpiresAt: 1,
+          subscriptionPaymentStatus: 1,
+          isBlocked: 1,
         },
       }
     );
