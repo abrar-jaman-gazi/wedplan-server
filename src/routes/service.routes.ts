@@ -12,11 +12,9 @@ import {
 
 const router = Router();
 
-router.use(authenticate, requireRole("vendor"));
-
-router.post("/", createService);
-router.get("/mine", getMyServices);
-router.patch("/:id", updateService);
-router.delete("/:id", deleteService);
+router.post("/", authenticate, requireRole("vendor"), createService);
+router.get("/mine", authenticate, requireRole("vendor"), getMyServices);
+router.patch("/:id", authenticate, requireRole("vendor"), updateService);
+router.delete("/:id", authenticate, requireRole("vendor"), deleteService);
 
 export default router;
