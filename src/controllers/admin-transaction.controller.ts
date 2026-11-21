@@ -196,6 +196,7 @@ export const getAdminTransactions = async (
               paidAt: 1,
               stripeSessionId: 1,
               stripeSubscriptionId: 1,
+              paymentMethod: 1,
             },
           },
         ],

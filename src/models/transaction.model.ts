@@ -29,6 +29,13 @@ export const TRANSACTION_TYPES = [
 export type TransactionType =
   (typeof TRANSACTION_TYPES)[number];
 
+export interface StoredPaymentCard {
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+}
+
 export interface TransactionDocument extends Document {
   _id?: ObjectId;
   vendorId: ObjectId;
@@ -43,6 +50,7 @@ export interface TransactionDocument extends Document {
   createdAt: Date;
   updatedAt: Date;
   paidAt: Date | null;
+  paymentMethod?: StoredPaymentCard | null;
 }
 
 export const getTransactionsCollection =

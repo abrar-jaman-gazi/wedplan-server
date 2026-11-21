@@ -33,6 +33,46 @@ const getInvoiceSubscriptionId = (
 const isValidVendorId = (value: unknown): value is string =>
   typeof value === "string" && /^[0-9a-fA-F]{24}$/.test(value);
 
+type StoredPaymentCard = {
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+};
+
+const getSubscriptionCard = (
+  subscription: Stripe.Subscription
+): StoredPaymentCard | null => {
+  const paymentMethod = subscription.default_payment_method;
+
+  if (
+    !paymentMethod ||
+    typeof paymentMethod === "string" ||
+    paymentMethod.type !== "card" ||
+    !paymentMethod.card
+  ) {
+    return null;
+  }
+
+  const card = paymentMethod.card;
+
+  if (
+    !card.brand ||
+    !/^\\d{4}$/.test(card.last4) ||
+    !Number.isInteger(card.exp_month) ||
+    !Number.isInteger(card.exp_year)
+  ) {
+    return null;
+  }
+
+  return {
+    brand: card.brand,
+    last4: card.last4,
+    expMonth: card.exp_month,
+    expYear: card.exp_year,
+  };
+};
+
 export const handleStripeWebhook = async (
   req: Request,
   res: Response,
@@ -96,7 +136,7 @@ export const handleStripeWebhook = async (
         subscriptionId
       ) {
         verifiedSubscription =
-          await stripe.subscriptions.retrieve(subscriptionId);
+          await stripe.subscriptions.retrieve(subscriptionId, { expand: ["default_payment_method"] });
       }
     }
 
@@ -109,7 +149,7 @@ export const handleStripeWebhook = async (
 
       if (subscriptionId) {
         verifiedSubscription =
-          await stripe.subscriptions.retrieve(subscriptionId);
+          await stripe.subscriptions.retrieve(subscriptionId, { expand: ["default_payment_method"] });
       }
     }
 
@@ -232,6 +272,9 @@ export const handleStripeWebhook = async (
                 stripeSubscriptionId: subscriptionId,
                 paidAt: new Date(),
                 updatedAt: new Date(),
+                ...(getSubscriptionCard(verifiedSubscription)
+                  ? { paymentMethod: getSubscriptionCard(verifiedSubscription) }
+                  : {}),
               },
             },
             { session: mongoSession }
@@ -318,6 +361,9 @@ export const handleStripeWebhook = async (
                       ? invoice.status_transitions.paid_at * 1000
                       : now.getTime()),
                     updatedAt: now,
+                    ...(getSubscriptionCard(subscription)
+                      ? { paymentMethod: getSubscriptionCard(subscription) }
+                      : {}),
                   },
                   $setOnInsert: {
                     stripeInvoiceId: invoice.id,
@@ -395,6 +441,9 @@ export const handleStripeWebhook = async (
                     status: "failed",
                     paidAt: null,
                     updatedAt: now,
+                    ...(getSubscriptionCard(subscription)
+                      ? { paymentMethod: getSubscriptionCard(subscription) }
+                      : {}),
                   },
                   $setOnInsert: {
                     stripeInvoiceId: invoice.id,
