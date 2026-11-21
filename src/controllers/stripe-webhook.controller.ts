@@ -281,7 +281,7 @@ export const handleStripeWebhook = async (
             periodEnd &&
             invoice.currency.toLowerCase() ===
               subscriptionConfig.premium.currency &&
-            invoice.amount_paid > 0
+            invoice.amount_paid === Math.round(subscriptionConfig.premium.amount * 100)
           ) {
             const vendorObjectId = new ObjectId(vendorId);
             const now = new Date();

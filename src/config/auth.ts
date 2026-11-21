@@ -1,6 +1,8 @@
 
 import { betterAuth } from "better-auth";
-import { APIError } from "better-auth/api";
+import { APIError, createAuthMiddleware, getOAuthState } from "better-auth/api";
+import type { User } from "better-auth";
+import type { GenericEndpointContext } from "@better-auth/core";
 import { mongodbAdapter } from "@better-auth/mongo-adapter";
 import { jwt } from "better-auth/plugins";
 
@@ -64,7 +66,7 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
-    minPasswordLength: 6,
+    minPasswordLength: 8,
     maxPasswordLength: 128,
   },
 
@@ -82,15 +84,41 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
-        before: async (user) => {
-          const requestedRole = user.role;
+        before: async (
+          user: User & Record<string, unknown>,
+          ctx: GenericEndpointContext | null
+        ) => {
+          let requestedRole = user.role;
+          let requestedBusinessName = user.businessName;
+
+          if (ctx?.path === "/callback/:id") {
+            const oauthState = await getOAuthState<{
+              role?: string;
+              businessName?: string;
+            }>();
+
+            requestedRole = oauthState?.role ?? "customer";
+            requestedBusinessName = oauthState?.businessName;
+          }
 
           if (
             requestedRole !== "customer" &&
             requestedRole !== "vendor"
           ) {
             throw new APIError("BAD_REQUEST", {
-              message: "Only customer and vendor registration is allowed.",
+              message:
+                "Only customer and vendor registration is allowed.",
+            });
+          }
+
+          if (
+            requestedRole === "vendor" &&
+            (typeof requestedBusinessName !== "string" ||
+              requestedBusinessName.trim().length < 2)
+          ) {
+            throw new APIError("BAD_REQUEST", {
+              message:
+                "A valid business name is required for vendor registration.",
             });
           }
 
@@ -98,6 +126,11 @@ export const auth = betterAuth({
             data: {
               ...user,
               role: requestedRole,
+              businessName:
+                requestedRole === "vendor" &&
+                typeof requestedBusinessName === "string"
+                  ? requestedBusinessName.trim()
+                  : undefined,
               isBlocked: false,
               subscriptionPlan: "free",
               subscriptionExpiresAt: null,
@@ -117,7 +150,8 @@ export const auth = betterAuth({
             user.isBlocked !== undefined
           ) {
             throw new APIError("FORBIDDEN", {
-              message: "Protected account fields cannot be changed through profile updates.",
+              message:
+                "Protected account fields cannot be changed through profile updates.",
             });
           }
 
@@ -127,6 +161,28 @@ export const auth = betterAuth({
         },
       },
     },
+  },
+
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-up/email") {
+        return;
+      }
+
+      const password = ctx.body?.password;
+
+      if (typeof password !== "string" || password.length < 8 || password.length > 128) {
+        throw new APIError("BAD_REQUEST", {
+          message: "Password must contain between 8 and 128 characters.",
+        });
+      }
+
+      if (!/[A-Z]/.test(password) || !/[a-z]/.test(password)) {
+        throw new APIError("BAD_REQUEST", {
+          message: "Password must include at least one uppercase and one lowercase letter.",
+        });
+      }
+    }),
   },
 
   plugins: [jwt()],

@@ -2,6 +2,7 @@
 import type { RequestHandler, Request } from "express";
 import { ObjectId } from "mongodb";
 
+import { getDatabase } from "../config/database.js";
 import { getServicesCollection } from "../models/service.model.js";
 import {
   validateCreateServiceInput,
@@ -52,6 +53,59 @@ export const createService: RequestHandler = async (
         errors: validation.errors,
       });
       return;
+    }
+
+    const database = getDatabase();
+    const vendor = await database.collection<{
+      role?: string;
+      isBlocked?: boolean;
+      subscriptionPlan?: string;
+      subscriptionExpiresAt?: Date | null;
+      subscriptionPaymentStatus?: string;
+    }>("users").findOne(
+      { _id: vendorId },
+      {
+        projection: {
+          role: 1,
+          isBlocked: 1,
+          subscriptionPlan: 1,
+          subscriptionExpiresAt: 1,
+          subscriptionPaymentStatus: 1,
+        },
+      }
+    );
+
+    if (!vendor || vendor.role !== "vendor" || vendor.isBlocked) {
+      res.status(403).json({
+        success: false,
+        message: "An active vendor account is required to create services.",
+      });
+      return;
+    }
+
+    const expiry = vendor.subscriptionExpiresAt;
+    const hasActivePremiumSubscription =
+      vendor.subscriptionPlan === "premium" &&
+      expiry instanceof Date &&
+      expiry.getTime() > Date.now() &&
+      vendor.subscriptionPaymentStatus !== "past_due" &&
+      vendor.subscriptionPaymentStatus !== "cancelled" &&
+      vendor.subscriptionPaymentStatus !== "failed";
+
+    if (!hasActivePremiumSubscription) {
+      const activeServiceCount = await getServicesCollection().countDocuments({
+        vendorId,
+        approvalStatus: "approved",
+        status: "active",
+      });
+
+      if (activeServiceCount >= 3) {
+        res.status(409).json({
+          success: false,
+          message: "Free vendors can have a maximum of 3 active services. Upgrade to Premium or deactivate an existing service.",
+        });
+        return;
+      }
     }
 
     const now = new Date();
